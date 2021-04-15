@@ -1,0 +1,4 @@
+- install Intel Realsense SDK 2.0
+- install OpenCV using video
+- add lib of realsense2 and opencv into file.pro
+- copy install file from folder add-library on gg drive(tram.nguyenbk17)
