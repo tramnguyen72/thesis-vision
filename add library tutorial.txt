@@ -2,3 +2,5 @@
 - install OpenCV using video
 - add lib of realsense2 and opencv into file.pro
 - copy install file from folder add-library on gg drive(tram.nguyenbk17)
+ + C:\Program Files (x86)\Intel RealSense SDK 2.0\bin\x64
+ + C:\OpenCV\opencv\build\x64\vc14\bin
