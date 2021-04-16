@@ -129,10 +129,24 @@ void MainWindow::on_background_subtraction_clicked()
     cv::Mat bg = QImageToMat(Background);
     imshow("aa", bg);
     waitKey(0); // Wait for any keystroke in the window*/
-    Mat bg = videoCapture->Mask;
-    Mat bgs = videoCapture->BGSubtraction;
-    imshow("bb",bgs);
-    imshow("a",bg);
+    Mat mask = videoCapture->Mask;
+    Mat bgs = videoCapture->bgSubtraction;
+
+    cv::Mat output = cv::Mat::zeros(bgs.size(), CV_8UC1);
+    int numberblob = 0;
+    std::vector<std::vector<cv::Point> > blob = videoCapture->blob1;
+
+    if (!blob.empty())
+    {
+        for(size_t i=0; i < blob.at(numberblob).size(); i++)
+        {
+            output.at<uchar>(blob.at(numberblob).at(i).y,blob.at(numberblob).at(i).x) = 255 ;
+        }
+    }
+
+    imshow("blob", output);
+    imshow("bgsubtraction",bgs);
+    imshow("mask",mask);
     waitKey(0);
 }
 

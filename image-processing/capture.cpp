@@ -14,7 +14,7 @@ cv::Mat CreateMask (cv::Point TL, cv::Point BR ,QImage BackgroundImage)
     return Mask;
 }
 
-cv::Mat Background_Subtraction(cv::Mat Frame, cv::Mat BackgroundMat, cv::Mat Mask, cv::Point TL, cv::Point BR)
+cv::Mat BackgroundSubtraction(cv::Mat Frame, cv::Mat BackgroundMat, cv::Mat Mask, cv::Point TL, cv::Point BR)
 {
     cv::Mat FrameGray, BGGray, MaskGray, Subtraction;
     cv::cvtColor(Frame, FrameGray, cv::COLOR_BGR2GRAY );
@@ -26,7 +26,6 @@ cv::Mat Background_Subtraction(cv::Mat Frame, cv::Mat BackgroundMat, cv::Mat Mas
     cv::absdiff(FrameGray,BGGray,Subtraction) ;
     Subtraction = Subtraction & MaskGray ;
 
-
     int sum,cnt = 0;
     for (int i = TL.x; i < BR.x; i++)
     {
@@ -37,18 +36,115 @@ cv::Mat Background_Subtraction(cv::Mat Frame, cv::Mat BackgroundMat, cv::Mat Mas
             sum += (int)Subtraction.at<uchar>(j,i) ;}
         }
     }
-
     float threshold = sum/cnt ;
-
-    //std::cout << "threshold = " << threshold << std::endl;
     if (threshold <20)  threshold = 20;
-
     cv::threshold(Subtraction,Subtraction,threshold,255,0);
+
+    cv::dilate(Subtraction, Subtraction, cv::Mat(),cv::Point(-1,-1) );
+    cv::erode(Subtraction, Subtraction, cv::Mat(),cv::Point(-1,-1));
 
     return Subtraction;
 
 }
 
+std::vector<std::vector<cv::Point> > labelBlobs(const cv::Mat gray, std::vector < std::vector<cv::Point> > &blobs)
+{
+
+    blobs.clear();
+
+    // Using labels from 2+ for each blob
+    cv::Mat label_image;
+    cv::Mat binary;
+
+    gray.copyTo(label_image);
+
+    int label_count = 2; // starts at 2 because 0,1 are used already
+
+
+    for(int y=0; y < gray.rows; y++) {
+        for(int x=0; x < gray.cols; x++) {
+            if((int)label_image.at<uchar>(y,x) != 255) {
+
+                continue;
+            }
+
+            cv::Rect rect;
+            cv::floodFill(label_image, cv::Point(x,y), cv::Scalar(label_count), &rect, cv::Scalar(0), cv::Scalar(0), 4);
+
+            std::vector<cv::Point>  blob;
+
+            for(int i=rect.y; i < (rect.y+rect.height); i++) {
+                for(int j=rect.x; j < (rect.x+rect.width); j++) {
+                    if((int)label_image.at<uchar>(i,j) != label_count) {
+                        continue;
+                    }
+
+                    blob.push_back(cv::Point(j,i));
+                }
+            }
+            if ((blob.size() > 5000)&&(blob.size() <8000))
+                blobs.push_back(blob);
+
+            label_count++;
+        }
+    }
+    return blobs;
+}
+
+void capture::findContours(cv::Mat frame, std::vector < std::vector<cv::Point> > blobs, size_t &numberblob, cv::Mat draw_box,
+                           rs2::depth_frame depth)
+{
+    cv::Mat mask(frame.rows,frame.cols, CV_8UC3, cv::Scalar(0, 0, 0));
+    cv::Mat graymask;
+    cv::cvtColor(mask,graymask,cv::COLOR_BGR2GRAY);
+    cv::Mat detected_edges;
+    std::vector< std::vector<cv::Point> > contours;
+    cv::RotatedRect minRect;
+    cv::Mat boxPoints; //output array of cv::boxPoints
+    cv::Mat mean;
+
+    if (!blobs.empty())
+    {
+        if (numberblob >= blobs.size()) {numberblob = 0;}
+
+        for(size_t i=0; i < blobs.at(numberblob).size(); i++)
+        {
+            graymask.at<uchar>(blobs.at(numberblob).at(i).y,blobs.at(numberblob).at(i).x) = 255 ;
+        }
+    }
+
+    cv::Canny( graymask, detected_edges, 35, 125 );
+    cv::dilate(detected_edges, detected_edges, cv::Mat(),cv::Point(-1,-1) );
+    cv::erode(detected_edges, detected_edges, cv::Mat(),cv::Point(-1,-1));
+    cv::findContours( detected_edges, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE );
+
+    //Find largest countour
+    int largest_area=0;
+    double largest_contour_index=0;
+    for( size_t i = 0; i< contours.size(); i++ ) // iterate through each contour.
+        {
+            double area = cv::contourArea( contours[i] );  //  Find the area of contour
+
+            if (area > largest_area)
+            {
+              largest_area = area;
+              largest_contour_index = i;               //Store the index of largest contour
+            }
+        }
+    draw_box = frame;
+
+    minRect = cv::minAreaRect(contours[largest_contour_index]);
+    cv::boxPoints(minRect,boxPoints); //boxPts: bottom-left,top-left, top-right, bottom-right
+    cv::Point2f rect_points[4];
+    minRect.points(rect_points);
+    for(int i = 0; i <4; i++)
+        cv::line(draw_box,rect_points[i],rect_points[(i+1)%4],cv::Scalar(0, 0, 255) ); //draw bounding box
+
+    //calculate mean to find center
+    cv::reduce(boxPoints, mean, 0, cv::REDUCE_AVG);
+    cv::Point2f center(mean.at<float>(0,0), mean.at<float>(0,1));
+    cv::circle(draw_box, center, 3, cv::Scalar(0, 255, 0), -1);
+}
 
 void capture::run()
 {
@@ -92,7 +188,10 @@ void capture::run()
         }
         if (!BackgroundMat.empty() && CreateMaskSingalAlready ==1)
         {
-            BGSubtraction = Background_Subtraction(color_frame,BackgroundMat,Mask,MaskTLPoint,MaskBRPoint);
+            bgSubtraction = BackgroundSubtraction(color_frame,BackgroundMat,Mask,MaskTLPoint,MaskBRPoint);
+
+            std::vector<std::vector<cv::Point> > blobs;
+            blob1= labelBlobs(bgSubtraction,blobs);
         }
         if (!color_frame.empty() && !depth_frame.empty())
         {

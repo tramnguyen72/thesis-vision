@@ -1,0 +1,56 @@
+----> mục tiêu: xuất tọa độ x,y,z, theta theo tọa độ camera
+
+----------------------------------------
+// After find and draw center and bounding box
+// Calculate Theta
+    cv::Point2f tl = cv::Point2f(boxPoints.at<float>(1,0),boxPoints.at<float>(1,1));
+    cv::Point2f tr = cv::Point2f(boxPoints.at<float>(2,0),boxPoints.at<float>(2,1));
+    cv::Point2f bl = cv::Point2f(boxPoints.at<float>(0,0),boxPoints.at<float>(0,1));
+    cv::Point2f A =tl ,B = tl;
+    double theta;
+    if (((tl.x - tr.x)*(tl.x - tr.x)* + (tl.y - tr.y)*(tl.y - tr.y)) >
+          ((tl.x - bl.x)*(tl.x - bl.x)* + (tl.y - bl.y)*(tl.y - bl.y))   )
+        B = tr;
+    else if (((tl.x - tr.x)*(tl.x - tr.x)* + (tl.y - tr.y)*(tl.y - tr.y)) <
+             ((tl.x - bl.x)*(tl.x - bl.x)* + (tl.y - bl.y)*(tl.y - bl.y))   )
+        B = bl;
+
+    if (A != B) theta = std::atan(-(A.y - B.y)/(A.x - B.x))*180/3.14;
+    else theta =0;
+
+
+----------------------------------------
+
+float x_cam,y_cam,z_cam;
+float dis = FindDistance(depth,center, x_cam,y_cam,z_cam );
+
+char text[200];
+sprintf(text,"(%.2f %.2f %.2f %.f)",x_cam*1000, y_cam*1000, z_cam*1000, theta);
+
+cv::putText(draw_box, text,
+        cv::Point(draw_box.size[1] - 250, draw_box.size[0] - 20), cv::FONT_HERSHEY_SIMPLEX,
+        0.65, cv::Scalar(0, 255, 0), 2);
+
+
+---------------------------------------
+float FindDistance (rs2::depth_frame depth_frame,cv::Point center,float &x,float &y, float &z)
+{
+
+    float dis = depth_frame.get_distance(int(center.x),int(center.y));
+    float center_pixel[2],center_point[3] ;
+    center_pixel[0] = int(center.x); center_pixel[1] = int(center.y);
+
+    rs2_intrinsics intr = depth_frame.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
+
+    rs2_deproject_pixel_to_point(center_point, &intr, center_pixel, dis);
+    x = center_point[0] ; y = center_point[1] ; z = center_point[2];
+    return dis;
+
+}
+
+
+---------------------------------------
+void run()
++ labelBlobs(bgSubtraction,blobs);
++ cv::Mat draw_box;
++ findContours(color_frame, blobs, chooseObject, draw_box, depth_frame);

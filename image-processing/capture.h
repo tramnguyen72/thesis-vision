@@ -20,19 +20,24 @@ public:
         return Pixmap_Color ;
     }
 
+    void findContours(cv::Mat frame, std::vector < std::vector<cv::Point> > blobs, size_t &numberblob, cv::Mat draw_box,
+                      rs2::depth_frame depth);
+
     int StreamOption=0;
     rs2::pipeline pipe;
     bool camera_running = true;
     bool CreateMaskSingalAlready,MaskSignal = 0;
     QImage BackgroundImage;
     cv::Point MaskTLPoint, MaskBRPoint = cv::Point(0,0);
+    size_t chooseObject;
 
     void run();
 
     // If called it will stop the thread
     void stop() { camera_running = false; }
 
-    cv::Mat BGSubtraction;
+    cv::Mat bgSubtraction;
+    std::vector<std::vector<cv::Point> > blob1;
     cv::Mat Mask;
 
 signals:
