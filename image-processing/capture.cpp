@@ -47,7 +47,7 @@ cv::Mat BackgroundSubtraction(cv::Mat Frame, cv::Mat BackgroundMat, cv::Mat Mask
 
 }
 
-std::vector<std::vector<cv::Point> > labelBlobs(const cv::Mat gray, std::vector < std::vector<cv::Point> > &blobs)
+void labelBlobs(const cv::Mat gray, std::vector < std::vector<cv::Point> > &blobs)
 {
 
     blobs.clear();
@@ -88,20 +88,20 @@ std::vector<std::vector<cv::Point> > labelBlobs(const cv::Mat gray, std::vector 
             label_count++;
         }
     }
-    return blobs;
 }
 
-void capture::findContours(cv::Mat frame, std::vector < std::vector<cv::Point> > blobs, size_t &numberblob, cv::Mat draw_box,
-                           rs2::depth_frame depth)
+void capture::findContour(cv::Mat frame, std::vector<std::vector<cv::Point>> blobs, size_t &numberblob, cv::Mat draw_box)
 {
     cv::Mat mask(frame.rows,frame.cols, CV_8UC3, cv::Scalar(0, 0, 0));
     cv::Mat graymask;
     cv::cvtColor(mask,graymask,cv::COLOR_BGR2GRAY);
     cv::Mat detected_edges;
     std::vector< std::vector<cv::Point> > contours;
+    //std::vector<cv::RotatedRect> minRect( contours.size() );
     cv::RotatedRect minRect;
     cv::Mat boxPoints; //output array of cv::boxPoints
     cv::Mat mean;
+    bool aa =0;
 
     if (!blobs.empty())
     {
@@ -128,12 +128,19 @@ void capture::findContours(cv::Mat frame, std::vector < std::vector<cv::Point> >
             if (area > largest_area)
             {
               largest_area = area;
-              largest_contour_index = i;               //Store the index of largest contour
+              largest_contour_index = i;
+              cout<<largest_contour_index<<endl;
+              aa = 1;
             }
         }
     draw_box = frame;
 
-    minRect = cv::minAreaRect(contours[largest_contour_index]);
+    //cv::drawContours( draw_box, contours, largest_contour_index, cv::Scalar(0, 0, 255), 2 );
+    if(aa==1)
+    {
+        cout<<"hello"<<endl;
+        minRect =cv::minAreaRect(contours[largest_contour_index]);
+
     cv::boxPoints(minRect,boxPoints); //boxPts: bottom-left,top-left, top-right, bottom-right
     cv::Point2f rect_points[4];
     minRect.points(rect_points);
@@ -143,7 +150,8 @@ void capture::findContours(cv::Mat frame, std::vector < std::vector<cv::Point> >
     //calculate mean to find center
     cv::reduce(boxPoints, mean, 0, cv::REDUCE_AVG);
     cv::Point2f center(mean.at<float>(0,0), mean.at<float>(0,1));
-    cv::circle(draw_box, center, 3, cv::Scalar(0, 255, 0), -1);
+    cv::circle(draw_box, center, 3, cv::Scalar(0, 255, 0), -1);}
+
 }
 
 void capture::run()
@@ -190,8 +198,15 @@ void capture::run()
         {
             bgSubtraction = BackgroundSubtraction(color_frame,BackgroundMat,Mask,MaskTLPoint,MaskBRPoint);
 
-            std::vector<std::vector<cv::Point> > blobs;
-            blob1= labelBlobs(bgSubtraction,blobs);
+            labelBlobs(bgSubtraction,blobs);
+
+
+            if(findcontour_ready == 1)
+            {
+                cv::Mat draw_box;
+                findContour(color_frame, blobs, numberBlob, draw_box);
+            }
+
         }
         if (!color_frame.empty() && !depth_frame.empty())
         {

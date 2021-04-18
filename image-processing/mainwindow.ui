@@ -154,6 +154,19 @@
      <string>Mask</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="chooseObject">
+    <property name="geometry">
+     <rect>
+      <x>170</x>
+      <y>40</y>
+      <width>101</width>
+      <height>41</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Choose Object</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">

@@ -6,6 +6,7 @@ using namespace cv;
 using namespace std;
 using namespace rs2;
 int Stream_option;
+size_t numberblob;
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -120,7 +121,16 @@ void MainWindow::on_Mask_clicked()
         band->close();
         Find_Mask_Ready = 1;
 
+
     }
+}
+
+void MainWindow::on_chooseObject_clicked()
+{
+    /*numberblob ++;
+    cout << numberblob << endl;*/
+    videoCapture->numberBlob ++;
+    cout << videoCapture->numberBlob << endl;
 }
 
 void MainWindow::on_background_subtraction_clicked()
@@ -129,15 +139,17 @@ void MainWindow::on_background_subtraction_clicked()
     cv::Mat bg = QImageToMat(Background);
     imshow("aa", bg);
     waitKey(0); // Wait for any keystroke in the window*/
-    Mat mask = videoCapture->Mask;
+    /*Mat mask = videoCapture->Mask;
     Mat bgs = videoCapture->bgSubtraction;
 
     cv::Mat output = cv::Mat::zeros(bgs.size(), CV_8UC1);
-    int numberblob = 0;
-    std::vector<std::vector<cv::Point> > blob = videoCapture->blob1;
+
+    std::vector<std::vector<cv::Point> > blob = videoCapture->blobs;
 
     if (!blob.empty())
     {
+        if (numberblob >= blob.size()) {numberblob = 0;}
+
         for(size_t i=0; i < blob.at(numberblob).size(); i++)
         {
             output.at<uchar>(blob.at(numberblob).at(i).y,blob.at(numberblob).at(i).x) = 255 ;
@@ -145,9 +157,14 @@ void MainWindow::on_background_subtraction_clicked()
     }
 
     imshow("blob", output);
+
+    //Mat box = videoCapture->box;
+    //imshow("box",box);
+
     imshow("bgsubtraction",bgs);
     imshow("mask",mask);
-    waitKey(0);
+    waitKey(0);*/
+    videoCapture->findcontour_ready =1;
 }
 
 Resize_RubberBand::Resize_RubberBand(QWidget *parent) : QWidget(parent) {
@@ -288,4 +305,6 @@ cv::Mat MainWindow::QImageToMat(QImage image)
     }
     return mat;
 }
+
+
 

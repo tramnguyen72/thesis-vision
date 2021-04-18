@@ -9,6 +9,9 @@
 #include <librealsense2/rs.hpp>
 #include <librealsense2/rsutil.h>
 
+using namespace std;
+using namespace cv;
+
 class capture : public QThread
 {
     Q_OBJECT
@@ -20,8 +23,7 @@ public:
         return Pixmap_Color ;
     }
 
-    void findContours(cv::Mat frame, std::vector < std::vector<cv::Point> > blobs, size_t &numberblob, cv::Mat draw_box,
-                      rs2::depth_frame depth);
+    void findContour(cv::Mat frame, std::vector<std::vector<cv::Point>> blobs, size_t &numberblob, cv::Mat draw_box);
 
     int StreamOption=0;
     rs2::pipeline pipe;
@@ -29,7 +31,8 @@ public:
     bool CreateMaskSingalAlready,MaskSignal = 0;
     QImage BackgroundImage;
     cv::Point MaskTLPoint, MaskBRPoint = cv::Point(0,0);
-    size_t chooseObject;
+    size_t numberBlob;
+    bool findcontour_ready=0;
 
     void run();
 
@@ -37,7 +40,7 @@ public:
     void stop() { camera_running = false; }
 
     cv::Mat bgSubtraction;
-    std::vector<std::vector<cv::Point> > blob1;
+    std::vector<std::vector<cv::Point> > blobs;
     cv::Mat Mask;
 
 signals:

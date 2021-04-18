@@ -74,6 +74,8 @@ private slots:
 
     void on_Mask_clicked();
 
+    void on_chooseObject_clicked();
+
 private:
     Ui::MainWindow *ui;
     bool Find_Mask_Ready = 1;
