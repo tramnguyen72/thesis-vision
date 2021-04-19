@@ -90,7 +90,23 @@ void labelBlobs(const cv::Mat gray, std::vector < std::vector<cv::Point> > &blob
     }
 }
 
-void capture::findContour(cv::Mat frame, std::vector<std::vector<cv::Point>> blobs, size_t &numberblob, cv::Mat draw_box)
+float FindDistance (rs2::depth_frame depth_frame,cv::Point center,float &x,float &y, float &z)
+{
+
+    float dis = depth_frame.get_distance(int(center.x),int(center.y));
+    float center_pixel[2],center_point[3] ;
+    center_pixel[0] = int(center.x); center_pixel[1] = int(center.y);
+
+    rs2_intrinsics intr = depth_frame.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
+
+    rs2_deproject_pixel_to_point(center_point, &intr, center_pixel, dis);
+    x = center_point[0] ; y = center_point[1] ; z = center_point[2];
+    return dis;
+
+}
+
+void capture::findContour(cv::Mat frame, std::vector<std::vector<cv::Point>> blobs, size_t &numberblob, cv::Mat draw_box,
+                          rs2::depth_frame depthframe)
 {
     cv::Mat mask(frame.rows,frame.cols, CV_8UC3, cv::Scalar(0, 0, 0));
     cv::Mat graymask;
@@ -101,7 +117,7 @@ void capture::findContour(cv::Mat frame, std::vector<std::vector<cv::Point>> blo
     cv::RotatedRect minRect;
     cv::Mat boxPoints; //output array of cv::boxPoints
     cv::Mat mean;
-    bool aa =0;
+    bool findindex_ready =0;
 
     if (!blobs.empty())
     {
@@ -129,28 +145,59 @@ void capture::findContour(cv::Mat frame, std::vector<std::vector<cv::Point>> blo
             {
               largest_area = area;
               largest_contour_index = i;
-              cout<<largest_contour_index<<endl;
-              aa = 1;
+              //cout<<largest_contour_index<<endl;
+              findindex_ready = 1;
             }
         }
     draw_box = frame;
 
     //cv::drawContours( draw_box, contours, largest_contour_index, cv::Scalar(0, 0, 255), 2 );
-    if(aa==1)
+    if(findindex_ready==1)
     {
-        cout<<"hello"<<endl;
+        //cout<<"hello"<<endl;
         minRect =cv::minAreaRect(contours[largest_contour_index]);
+        cv::boxPoints(minRect,boxPoints); //boxPts: bottom-left,top-left, top-right, bottom-right
+        cv::Point2f rect_points[4];
+        minRect.points(rect_points);
+        for(int i = 0; i <4; i++)
+            cv::line(draw_box,rect_points[i],rect_points[(i+1)%4],cv::Scalar(0, 0, 255), 2 ); //draw bounding box
 
-    cv::boxPoints(minRect,boxPoints); //boxPts: bottom-left,top-left, top-right, bottom-right
-    cv::Point2f rect_points[4];
-    minRect.points(rect_points);
-    for(int i = 0; i <4; i++)
-        cv::line(draw_box,rect_points[i],rect_points[(i+1)%4],cv::Scalar(0, 0, 255) ); //draw bounding box
+        //calculate mean to find center
+        cv::reduce(boxPoints, mean, 0, cv::REDUCE_AVG);
+        cv::Point2f center(mean.at<float>(0,0), mean.at<float>(0,1));
+        cv::circle(draw_box, center, 3, cv::Scalar(0, 255, 0), -1);
 
-    //calculate mean to find center
-    cv::reduce(boxPoints, mean, 0, cv::REDUCE_AVG);
-    cv::Point2f center(mean.at<float>(0,0), mean.at<float>(0,1));
-    cv::circle(draw_box, center, 3, cv::Scalar(0, 255, 0), -1);}
+        // After find and draw center and bounding box
+        // Calculate Theta
+        cv::Point2f tl = cv::Point2f(boxPoints.at<float>(1,0),boxPoints.at<float>(1,1));
+        cv::Point2f tr = cv::Point2f(boxPoints.at<float>(2,0),boxPoints.at<float>(2,1));
+        cv::Point2f bl = cv::Point2f(boxPoints.at<float>(0,0),boxPoints.at<float>(0,1));
+        cv::Point2f A =tl ,B = tl;
+        double theta;
+        if (((tl.x - tr.x)*(tl.x - tr.x)* + (tl.y - tr.y)*(tl.y - tr.y)) >
+                ((tl.x - bl.x)*(tl.x - bl.x)* + (tl.y - bl.y)*(tl.y - bl.y))   )
+            B = tr;
+        else if (((tl.x - tr.x)*(tl.x - tr.x)* + (tl.y - tr.y)*(tl.y - tr.y)) <
+                 ((tl.x - bl.x)*(tl.x - bl.x)* + (tl.y - bl.y)*(tl.y - bl.y))   )
+            B = bl;
+
+        if (A != B) theta = std::atan(-(A.y - B.y)/(A.x - B.x))*180/3.14;
+        else theta =0;
+
+        //cout<<theta<<endl;
+
+        //put text x_cam,y_cam,z_cam,theta,distance
+        float x_cam,y_cam,z_cam;
+        float dis = FindDistance(depthframe,center, x_cam,y_cam,z_cam );
+        //cout<<x_cam<<endl;
+
+        char text[200];
+        sprintf(text,"x:%.2f y:%.2f z:%.2f theta:%.f distance:%.2f",x_cam*1000, y_cam*1000, z_cam*1000, theta, dis);
+
+        cv::putText(draw_box, text, cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX,
+                0.65, cv::Scalar(0, 255, 0), 2);
+
+    }
 
 }
 
@@ -175,6 +222,9 @@ void capture::run()
         rs2::frame depth = data.get_depth_frame().apply_filter(color_map);
         rs2::frame color = data.get_color_frame();
 
+        //rs2::depth frame
+        rs2::depth_frame depthframe = data.get_depth_frame();
+
         // Query frame size (width and height)
         const int w_depth = depth.as<rs2::video_frame>().get_width();
         const int h_depth = depth.as<rs2::video_frame>().get_height();
@@ -185,6 +235,9 @@ void capture::run()
         // Create OpenCV matrix of size (w,h) from the colorized depth data
         cv::Mat depth_frame(cv::Size(w_depth, h_depth), CV_8UC3, (void*)depth.get_data(), cv::Mat::AUTO_STEP);
         cv::Mat color_frame(cv::Size(w_color, h_color), CV_8UC3, (void*)color.get_data(), cv::Mat::AUTO_STEP);
+
+        cv::Mat another_depthframe = cv::Mat (cv::Size(w_depth, h_depth), CV_16UC1, (void*)depthframe.get_data(), cv::Mat::AUTO_STEP);
+        another_depthframe.convertTo(another_depthframe, CV_8UC1, 15 / 256.0);
 
         cv::Mat BackgroundMat = QImageToMat(BackgroundImage);
 
@@ -204,7 +257,7 @@ void capture::run()
             if(findcontour_ready == 1)
             {
                 cv::Mat draw_box;
-                findContour(color_frame, blobs, numberBlob, draw_box);
+                findContour(color_frame, blobs, numberBlob, draw_box, depthframe);
             }
 
         }

@@ -35,6 +35,13 @@ void MainWindow::on_displayImage_clicked()
 {
     ui->label->setText("hello");
     Mat image = imread("E:/dog.jpg");
+    cv::putText(image, //target image
+                "Hello, OpenCV!", //text
+                cv::Point(10, image.rows / 2), //top-left position
+                cv::FONT_HERSHEY_DUPLEX,
+                1.0,
+                CV_RGB(118, 185, 0), //font color
+                2);
     imshow("dog", image);
     waitKey(0); // Wait for any keystroke in the window
     destroyAllWindows();
@@ -129,7 +136,7 @@ void MainWindow::on_chooseObject_clicked()
 {
     /*numberblob ++;
     cout << numberblob << endl;*/
-    videoCapture->numberBlob ++;
+    videoCapture->numberBlob = videoCapture->numberBlob + 1;
     cout << videoCapture->numberBlob << endl;
 }
 

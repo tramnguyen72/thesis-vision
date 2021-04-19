@@ -23,7 +23,8 @@ public:
         return Pixmap_Color ;
     }
 
-    void findContour(cv::Mat frame, std::vector<std::vector<cv::Point>> blobs, size_t &numberblob, cv::Mat draw_box);
+    void findContour(cv::Mat frame, std::vector<std::vector<cv::Point>> blobs, size_t &numberblob, cv::Mat draw_box,
+                     rs2::depth_frame depthframe);
 
     int StreamOption=0;
     rs2::pipeline pipe;
@@ -31,7 +32,7 @@ public:
     bool CreateMaskSingalAlready,MaskSignal = 0;
     QImage BackgroundImage;
     cv::Point MaskTLPoint, MaskBRPoint = cv::Point(0,0);
-    size_t numberBlob;
+    size_t numberBlob=0;
     bool findcontour_ready=0;
 
     void run();
