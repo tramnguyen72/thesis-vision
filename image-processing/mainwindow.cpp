@@ -174,6 +174,12 @@ void MainWindow::on_background_subtraction_clicked()
     videoCapture->findcontour_ready =1;
 }
 
+void MainWindow::on_Size_clicked()
+{
+
+}
+
+
 Resize_RubberBand::Resize_RubberBand(QWidget *parent) : QWidget(parent) {
     //tell QSizeGrip to resize this widget instead of top-level window
     setWindowFlags(Qt::SubWindow);
@@ -312,6 +318,7 @@ cv::Mat MainWindow::QImageToMat(QImage image)
     }
     return mat;
 }
+
 
 
 

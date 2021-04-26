@@ -92,7 +92,6 @@ void labelBlobs(const cv::Mat gray, std::vector < std::vector<cv::Point> > &blob
 
 float FindDistance (rs2::depth_frame depth_frame,cv::Point center,float &x,float &y, float &z)
 {
-
     float dis = depth_frame.get_distance(int(center.x),int(center.y));
     float center_pixel[2],center_point[3] ;
     center_pixel[0] = int(center.x); center_pixel[1] = int(center.y);
@@ -102,8 +101,47 @@ float FindDistance (rs2::depth_frame depth_frame,cv::Point center,float &x,float
     rs2_deproject_pixel_to_point(center_point, &intr, center_pixel, dis);
     x = center_point[0] ; y = center_point[1] ; z = center_point[2];
     return dis;
+}
+
+void Mearsure_Size (rs2::depth_frame depth_frame,cv::Point2f tltr,cv::Point2f blbr,cv::Point2f tlbl,cv::Point2f trbr,
+                     float &width , float &height )
+{
+    float tltr_pixel[2], blbr_pixel[2], tlbl_pixel[2], trbr_pixel[2];
+    tltr_pixel[0] = int(tltr.x); tltr_pixel[1] =  int(tltr.y);
+    blbr_pixel[0] = int(blbr.x); blbr_pixel[1] =  int(blbr.y);
+
+    tlbl_pixel[0] = int(tlbl.x) + 1 ; tlbl_pixel[1] =  int(tlbl.y);
+    trbr_pixel[0] = int(trbr.x) - 1; trbr_pixel[1] =  int(trbr.y);
+
+    float tltr_point[3],blbr_point[3] ;
+    float tlbl_point[3],trbr_point[3] ;
+
+    rs2_intrinsics intr = depth_frame.get_profile().as<rs2::video_stream_profile>().get_intrinsics();
+    auto tltr_dis = depth_frame.get_distance(tltr_pixel[0],tltr_pixel[1]);
+    auto blbr_dis = depth_frame.get_distance( blbr_pixel[0],blbr_pixel[1]);
+
+
+    rs2_deproject_pixel_to_point(tltr_point, &intr, tltr_pixel, tltr_dis);
+    rs2_deproject_pixel_to_point(blbr_point, &intr, blbr_pixel, blbr_dis);
+
+     width = sqrt(pow(tltr_point[0] - blbr_point[0], 2) +
+            pow(tltr_point[1] - blbr_point[1], 2) +
+            pow(tltr_point[2] - blbr_point[2], 2));
+
+
+    auto tlbl_dis = depth_frame.get_distance(tlbl_pixel[0],tlbl_pixel[1]);
+    auto trbr_dis = depth_frame.get_distance( trbr_pixel[0],trbr_pixel[1]);
+
+
+    rs2_deproject_pixel_to_point(tlbl_point, &intr, tlbl_pixel, tlbl_dis);
+    rs2_deproject_pixel_to_point(trbr_point, &intr, trbr_pixel, trbr_dis);
+
+    height = sqrt(pow(tlbl_point[0] - trbr_point[0], 2) +
+            pow(tlbl_point[1] - trbr_point[1], 2) +
+            pow(tlbl_point[2] - trbr_point[2], 2));
 
 }
+
 
 void capture::findContour(cv::Mat frame, std::vector<std::vector<cv::Point>> blobs, size_t &numberblob, cv::Mat draw_box,
                           rs2::depth_frame depthframe)
@@ -191,12 +229,14 @@ void capture::findContour(cv::Mat frame, std::vector<std::vector<cv::Point>> blo
         float dis = FindDistance(depthframe,center, x_cam,y_cam,z_cam );
         //cout<<x_cam<<endl;
 
-        char text[200];
-        sprintf(text,"x:%.2f y:%.2f z:%.2f theta:%.f distance:%.2f",x_cam*1000, y_cam*1000, z_cam*1000, theta, dis);
+        char text1[200], text2[200];
+        sprintf(text1,"x:%.8f y:%.8f z:%.8f",x_cam*1000, y_cam*1000, z_cam*1000) ;
+        sprintf(text2, "theta:%.8f distance:%.8f", theta, dis);
 
-        cv::putText(draw_box, text, cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX,
-                0.65, cv::Scalar(0, 255, 0), 2);
-
+        cv::putText(draw_box, text1, cv::Point(30, 30), cv::FONT_HERSHEY_SIMPLEX,
+                0.5, cv::Scalar(0, 255, 0), 2);
+        cv::putText(draw_box, text2, cv::Point(50, 50), cv::FONT_HERSHEY_SIMPLEX,
+                0.5, cv::Scalar(0, 255, 0), 2);
     }
 
 }

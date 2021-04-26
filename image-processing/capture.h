@@ -34,6 +34,7 @@ public:
     cv::Point MaskTLPoint, MaskBRPoint = cv::Point(0,0);
     size_t numberBlob=0;
     bool findcontour_ready=0;
+    bool measure_size = 0;
 
     void run();
 
